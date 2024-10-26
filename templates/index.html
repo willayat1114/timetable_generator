@@ -72,6 +72,10 @@
     <div class="container">
         <h1>Automatic Timetable Generator</h1>
         <div class="form-group">
+            <label for="num_sections">Number of Sections:</label>
+            <input type="number" id="num_sections" required>
+        </div>
+        <div class="form-group">
             <label for="num_classes">Number of Classes:</label>
             <input type="number" id="num_classes" required>
         </div>
@@ -92,7 +96,7 @@
         <button onclick="saveTimetable()">Save as PNG</button>
         <div class="timetable" id="timetable">
             <h2>Generated Timetable</h2>
-            <div id="timetable-table"></div>
+            <div id="timetable-tables"></div>
         </div>
     </div>
 
@@ -115,12 +119,13 @@
         });
 
         function generateTimetable() {
+            const num_sections = document.getElementById('num_sections').value;
             const num_classes = document.getElementById('num_classes').value;
             const time_per_class = document.getElementById('time_per_class').value;
             const lunch_break = document.getElementById('lunch_break').value;
             const start_time = document.getElementById('start_time').value;
 
-            if (!num_classes || !time_per_class || !lunch_break || !start_time) {
+            if (!num_sections || !num_classes || !time_per_class || !lunch_break || !start_time) {
                 alert('Please fill in all fields.');
                 return;
             }
@@ -140,36 +145,42 @@
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ num_classes, time_per_class, lunch_break, start_time, subjects })
+                body: JSON.stringify({ num_sections, num_classes, time_per_class, lunch_break, start_time, subjects })
             })
             .then(response => response.json())
             .then(data => {
-                const timetableTableDiv = document.getElementById('timetable-table');
-                timetableTableDiv.innerHTML = '';
-                const table = document.createElement('table');
-                const thead = document.createElement('thead');
-                const tbody = document.createElement('tbody');
+                const timetableTablesDiv = document.getElementById('timetable-tables');
+                timetableTablesDiv.innerHTML = '';
 
-                thead.innerHTML = `
-                    <tr>
-                        <th>Time</th>
-                        <th>Classes</th>
-                    </tr>
-                `;
+                for (const section in data) {
+                    const sectionDiv = document.createElement('div');
+                    sectionDiv.innerHTML = `<h3>${section}</h3>`;
+                    const table = document.createElement('table');
+                    const thead = document.createElement('thead');
+                    const tbody = document.createElement('tbody');
 
-                data.forEach(slot => {
-                    const tr = document.createElement('tr');
-                    const [time, classes] = slot.split(': ');
-                    tr.innerHTML = `
-                        <td>${time}</td>
-                        <td>${classes}</td>
+                    thead.innerHTML = `
+                        <tr>
+                            <th>Time</th>
+                            <th>Classes</th>
+                        </tr>
                     `;
-                    tbody.appendChild(tr);
-                });
 
-                table.appendChild(thead);
-                table.appendChild(tbody);
-                timetableTableDiv.appendChild(table);
+                    data[section].forEach(slot => {
+                        const tr = document.createElement('tr');
+                        const [time, classes] = slot.split(': ');
+                        tr.innerHTML = `
+                            <td>${time}</td>
+                            <td>${classes}</td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+
+                    table.appendChild(thead);
+                    table.appendChild(tbody);
+                    sectionDiv.appendChild(table);
+                    timetableTablesDiv.appendChild(sectionDiv);
+                }
             })
             .catch(error => {
                 console.error('Error:', error);
@@ -177,7 +188,7 @@
         }
 
         function saveTimetable() {
-            html2canvas(document.getElementById('timetable-table'), {
+            html2canvas(document.getElementById('timetable-tables'), {
                 background: '#fff',
                 onrendered: function(canvas) {
                     const link = document.createElement('a');
