@@ -1,0 +1,192 @@
+<!-- templates/index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Automatic Timetable Generator</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            background-color: #f0f8f5; /* Light green background */
+            color: #333; 
+        }
+        .container { 
+            max-width: 600px; 
+            margin: 0 auto; 
+            padding: 20px; 
+            background-color: #fff; /* White background for the container */
+            border-radius: 8px; 
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); 
+        }
+        .form-group { 
+            margin-bottom: 15px; 
+        }
+        label { 
+            display: block; 
+            margin-bottom: 5px; 
+            color: #2e7d32; /* Dark green color for labels */
+        }
+        input { 
+            width: 100%; 
+            padding: 8px; 
+            box-sizing: border-box; 
+            border: 1px solid #ccc; 
+            border-radius: 4px; 
+        }
+        button { 
+            padding: 10px 15px; 
+            background-color: #2e7d32; /* Dark green background for button */
+            color: white; 
+            border: none; 
+            border-radius: 4px; 
+            cursor: pointer; 
+        }
+        button:hover { 
+            background-color: #1b5e20; /* Darker green on hover */
+        }
+        .timetable { 
+            margin-top: 20px; 
+        }
+        .subject-group { 
+            margin-bottom: 15px; 
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background-color: #fff; /* White background for the table */
+        }
+        th, td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #2e7d32;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Automatic Timetable Generator</h1>
+        <div class="form-group">
+            <label for="num_classes">Number of Classes:</label>
+            <input type="number" id="num_classes" required>
+        </div>
+        <div class="form-group">
+            <label for="time_per_class">Time per Class (minutes):</label>
+            <input type="number" id="time_per_class" required>
+        </div>
+        <div class="form-group">
+            <label for="lunch_break">Lunch Break (minutes):</label>
+            <input type="number" id="lunch_break" required>
+        </div>
+        <div class="form-group">
+            <label for="start_time">Start Time (HH:MM):</label>
+            <input type="time" id="start_time" required>
+        </div>
+        <div id="subjects"></div>
+        <button onclick="generateTimetable()">Generate Timetable</button>
+        <button onclick="saveTimetable()">Save as PNG</button>
+        <div class="timetable" id="timetable">
+            <h2>Generated Timetable</h2>
+            <div id="timetable-table"></div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/0.4.1/html2canvas.min.js"></script>
+    <script>
+        document.getElementById('num_classes').addEventListener('input', function() {
+            const numClasses = this.value;
+            const subjectsDiv = document.getElementById('subjects');
+            subjectsDiv.innerHTML = '';
+
+            for (let i = 0; i < numClasses; i++) {
+                const subjectGroup = document.createElement('div');
+                subjectGroup.className = 'subject-group';
+                subjectGroup.innerHTML = `
+                    <label for="subject_${i}">Subject ${i + 1}:</label>
+                    <input type="text" id="subject_${i}" required>
+                `;
+                subjectsDiv.appendChild(subjectGroup);
+            }
+        });
+
+        function generateTimetable() {
+            const num_classes = document.getElementById('num_classes').value;
+            const time_per_class = document.getElementById('time_per_class').value;
+            const lunch_break = document.getElementById('lunch_break').value;
+            const start_time = document.getElementById('start_time').value;
+
+            if (!num_classes || !time_per_class || !lunch_break || !start_time) {
+                alert('Please fill in all fields.');
+                return;
+            }
+
+            const subjects = [];
+            for (let i = 0; i < num_classes; i++) {
+                const subject = document.getElementById(`subject_${i}`).value;
+                if (!subject) {
+                    alert('Please fill in all subject names.');
+                    return;
+                }
+                subjects.push(subject);
+            }
+
+            fetch('/generate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ num_classes, time_per_class, lunch_break, start_time, subjects })
+            })
+            .then(response => response.json())
+            .then(data => {
+                const timetableTableDiv = document.getElementById('timetable-table');
+                timetableTableDiv.innerHTML = '';
+                const table = document.createElement('table');
+                const thead = document.createElement('thead');
+                const tbody = document.createElement('tbody');
+
+                thead.innerHTML = `
+                    <tr>
+                        <th>Time</th>
+                        <th>Classes</th>
+                    </tr>
+                `;
+
+                data.forEach(slot => {
+                    const tr = document.createElement('tr');
+                    const [time, classes] = slot.split(': ');
+                    tr.innerHTML = `
+                        <td>${time}</td>
+                        <td>${classes}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+
+                table.appendChild(thead);
+                table.appendChild(tbody);
+                timetableTableDiv.appendChild(table);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+        }
+
+        function saveTimetable() {
+            html2canvas(document.getElementById('timetable-table'), {
+                background: '#fff',
+                onrendered: function(canvas) {
+                    const link = document.createElement('a');
+                    link.href = canvas.toDataURL('image/png');
+                    link.download = 'timetable.png';
+                    link.click();
+                }
+            });
+        }
+    </script>
+</body>
+</html>
